@@ -1,0 +1,80 @@
+version: '3.7'
+
+services:
+  mariadb:
+    image: mariadb:1.0
+    build: 
+      context: ./requirements/mariadb
+      args:
+        - DB_ROOT
+        - DB_PASS_ROOT
+        - DB_USER
+        - DB_PASS_USER
+        - DB_NAME
+    container_name: mariadb
+    restart: always
+    volumes:
+      - db:/var/lib/mysql/
+    networks:
+      - docker_net
+    ports:
+      - "3306:3306"
+
+  wordpress:
+    depends_on:
+      - mariadb
+    image: wordpress:1.0
+    container_name: wordpress
+    build: ./requirements/wordpress/
+    environment:
+      - DB_NAME
+      - DB_USER
+      - DB_PASS_USER
+      - DB_HOST
+      - DOMAIN_NAME
+    ports:
+      - "9000:9000"
+    restart: always
+    env_file:
+      - .env
+    networks:
+      - docker_net
+    volumes:
+      - wp:/var/www/wordpress/
+
+  nginx:
+    depends_on:
+      - wordpress   
+    image: nginx:1.0
+    container_name: nginx
+    build: 
+      context: ./requirements/nginx/
+      args:
+        - DOMAIN_NAME
+    ports:
+    - "443:443"
+    networks:
+      - docker_net
+    restart: always
+    env_file:
+      - .env
+    volumes:
+       - wp:/var/www/wordpress/
+
+networks:
+  docker_net:
+   driver: bridge
+
+volumes:
+  wp:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ${VOL_PATH}/wordpress/
+  db:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ${VOL_PATH}/db/
